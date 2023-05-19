@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from handlers import SERVICE_DICT
 from common import generate_services
+from config_generator import generate_default_env
 
 
 logging.basicConfig(
@@ -37,13 +38,22 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    if generate_default_env():
+        logging.info(
+            "Generated default .env file. Please fill in the details.")
+        exit(0)
+
     load_dotenv()
+
     ctfd_url = os.getenv("CTFD_URL", None)
     ctfd_token = os.getenv("CTFD_API_KEY", None)
 
+    if None in [ctfd_url, ctfd_token]:
+        logging.critical("CTFd URL or API key not set.")
+        exit(1)
+
     if args.local:
         logging.info("Running locally without telegram")
-    
 
     no_down = 0
     summary = []
@@ -77,10 +87,15 @@ if __name__ == '__main__':
 
     summary_info = f"`{len(services) - no_down}` up & `{no_down}` down of `{total_challs}` challenges."
     logging.info(summary_info)
-    
+
     if not args.local:
         token = os.getenv("TELEGRAM_TOKEN", None)
         chat = os.getenv("TELEGRAM_CHAT_ID", None)
+
+        if None in [token, chat]:
+            logging.critical(
+                "Unable to send message. Telegram token or chat id not set.")
+            exit(1)
         bot = TeleBot(token=token)
         summary.append(summary_info)
         bot.send_message(chat, '\n'.join(summary), parse_mode="Markdown")
